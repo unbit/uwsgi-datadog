@@ -32,13 +32,13 @@ static void stats_pusher_datadog(struct uwsgi_stats_pusher_instance *uspi, time_
 		uwsgi_rlock(uwsgi.metrics_lock);
 		int64_t value = *um->value;
 		uwsgi_rwunlock(uwsgi.metrics_lock);
-/*
+
 		if (um->reset_after_push){
 			uwsgi_wlock(uwsgi.metrics_lock);
 			*um->value = um->initial_value;
 			uwsgi_rwunlock(uwsgi.metrics_lock);
 		}
-*/
+
 		if (uwsgi_buffer_append(ub, "{\"metric\":\"", 11)) goto error;
 		if (uwsgi_buffer_append_json(ub, um->name, um->name_len)) goto error;
         	if (uwsgi_buffer_append(ub, "\",\"points\":[[", 13)) goto error;
