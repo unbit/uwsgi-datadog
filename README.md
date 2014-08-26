@@ -3,6 +3,8 @@ uwsgi-datadog
 
 uWSGI plugin for datadog integration
 
+It currently supports only metrics, alarm support (via events) is on work
+
 INSTALL
 =======
 
