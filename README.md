@@ -30,3 +30,5 @@ enable-metrics = true
 
 plugin = datadog
 stats-push = datadog:https://app.datadoghq.com/api/v1/series?api_key=API_KEY
+# optional prefix for uwsgi internal metric name, up to 14 chars
+datadog-prefix = uwsgi

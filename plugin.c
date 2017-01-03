@@ -13,6 +13,35 @@ it exports values exposed by the metric subsystem
 
 extern struct uwsgi_server uwsgi;
 
+static struct uwsgi_stats_datadog {
+	char prefix[16];
+	size_t prefix_len;
+	int use_canonical;
+	char hostname[512];
+	size_t hostname_len;
+} datadog_config;
+
+static void datadog_set_prefix(char *opt, char *value, void *key) {
+	size_t len;
+	if (!value) {
+		return;
+	}
+	len = strlen(value);
+	if (len > sizeof(datadog_config.prefix) - 1) {
+		uwsgi_log_verbose("[datadog] metrics prefix too long, max %d chars\n",
+				sizeof(datadog_config.prefix) - 1);
+		return;
+	}
+
+	memcpy(datadog_config.prefix, value, len);
+	datadog_config.prefix[len] = '\0';
+	datadog_config.prefix_len = len;
+}
+
+static struct uwsgi_option datadog_options[] = {
+	{"datadog-prefix", required_argument, 's', "add a prefix to the exported metrics", datadog_set_prefix, &datadog_config.prefix, 0}
+};
+
 /*
 JSON body:
 
@@ -45,6 +74,9 @@ static void stats_pusher_datadog(struct uwsgi_stats_pusher_instance *uspi, time_
 		}
 
 		if (uwsgi_buffer_append(ub, "{\"metric\":\"", 11)) goto error;
+		if (datadog_config.prefix) {
+			if (uwsgi_buffer_append_json(ub, datadog_config.prefix, datadog_config.prefix_len)) goto error;
+		}
 		if (uwsgi_buffer_append_json(ub, um->name, um->name_len)) goto error;
 		if (uwsgi_buffer_append(ub, "\",\"points\":[[", 13)) goto error;
 		if (uwsgi_buffer_num64(ub, now)) goto error;
@@ -117,5 +149,6 @@ static void datadog_init(void) {
 
 struct uwsgi_plugin datadog_plugin = {
 	.name = "datadog",
+	.options = datadog_options,
 	.on_load = datadog_init,
 };
