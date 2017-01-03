@@ -5,7 +5,7 @@
 
 this is a stats pusher plugin for the datadog server:
 
---stats-push datadogdb:https://app.datadoghq.com/api/v1/series?api_key=API_KEY
+--stats-push datadog:https://app.datadoghq.com/api/v1/series?api_key=API_KEY
 
 it exports values exposed by the metric subsystem
 
