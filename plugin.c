@@ -39,7 +39,8 @@ static void datadog_set_prefix(char *opt, char *value, void *key) {
 }
 
 static struct uwsgi_option datadog_options[] = {
-	{"datadog-prefix", required_argument, 's', "add a prefix to the exported metrics", datadog_set_prefix, &datadog_config.prefix, 0}
+	{"datadog-prefix", required_argument, 's', "add a prefix to the exported metrics", datadog_set_prefix, &datadog_config.prefix, 0},
+	{"datadog-canonical-hostname", required_argument, 0, "send canonical name for the hostname", uwsgi_opt_true, &datadog_config.use_canonical, 0}
 };
 
 /*
@@ -89,7 +90,11 @@ static void stats_pusher_datadog(struct uwsgi_stats_pusher_instance *uspi, time_
 			if (uwsgi_buffer_append(ub, "counter", 7)) goto error;
 		}
 		if (uwsgi_buffer_append(ub, "\",\"host\":\"", 10)) goto error;
-		if (uwsgi_buffer_append_json(ub, uwsgi.hostname, uwsgi.hostname_len)) goto error;
+		if (datadog_config.use_canonical && datadog_config.hostname) {
+			if (uwsgi_buffer_append_json(ub, datadog_config.hostname, datadog_config.hostname_len)) goto error;
+		} else {
+			if (uwsgi_buffer_append_json(ub, uwsgi.hostname, uwsgi.hostname_len)) goto error;
+		}
 		if (uwsgi_buffer_append(ub, "\"}", 2)) goto error;
 		if (um->next) {
 			if (uwsgi_buffer_append(ub, ",", 1)) goto error;
@@ -145,6 +150,27 @@ static void datadog_init(void) {
 	struct uwsgi_stats_pusher *usp = uwsgi_register_stats_pusher("datadog", stats_pusher_datadog);
 	// we use a custom format not the JSON one
 	usp->raw = 1;
+
+	// find the canonical name
+	struct addrinfo hints, *result, *p;
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_flags = AI_CANONNAME;
+
+	if (getaddrinfo(uwsgi.hostname, "http", &hints, &result) != 0) {
+		uwsgi_log_verbose("[datadog] unable to get canonical name for hostname\n");
+		return;
+	}
+	for (p = result; p != NULL; p = p->ai_next) {
+		size_t len = strlen(p->ai_canonname);
+		len = UMIN(len, sizeof(datadog_config.hostname)-1);
+		memcpy(datadog_config.hostname, p->ai_canonname, len);
+		datadog_config.hostname[len] = '\0';
+		datadog_config.hostname_len = len;
+		break;
+	}
+	freeaddrinfo(result);
 }
 
 struct uwsgi_plugin datadog_plugin = {
