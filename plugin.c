@@ -20,6 +20,11 @@ JSON body:
 
 */
 
+size_t silent_stream_handler(char *ptr, size_t size, size_t nmemb, void *userdata)
+{
+   return size * nmemb;
+}
+
 static void stats_pusher_datadog(struct uwsgi_stats_pusher_instance *uspi, time_t now, char *json, size_t json_len) {
 
 	// we use the same buffer for all of the metrics
@@ -79,6 +84,7 @@ static void stats_pusher_datadog(struct uwsgi_stats_pusher_instance *uspi, time_
         curl_easy_setopt(curl, CURLOPT_POSTFIELDS, ub->buf);
         curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
         curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, &silent_stream_handler);  // disable CURL output to stdout
         CURLcode res = curl_easy_perform(curl);
         curl_slist_free_all(headers);
         if (res != CURLE_OK) {
